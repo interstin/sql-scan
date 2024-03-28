@@ -5,7 +5,7 @@ import sys
 import argparse
 import re
 
-Version = "NANA sql-scan Tool V1.0.0"
+Version = "sql-scan Tool V1.0.0"
 Title = '''
 ************************************************************************************
 <免责声明>:本工具仅供学习实验使用,请勿用于非法用途,否则自行承担相应的法律责任
