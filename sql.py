@@ -34,7 +34,7 @@ def scan(url,method,data):
                 result = {
                     'post':post(url,payload,data)
                 }.get(method,get(url,payload))
-                print(result.decode('utf-8'))
+                print(result)
 
 
 def main():
