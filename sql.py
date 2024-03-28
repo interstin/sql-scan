@@ -12,7 +12,7 @@ Title = '''
 <Disclaimer>:This tool is onl y for learning and experiment. Do not use it for illegal purposes, or you will bear corresponding legal responsibilities
 ************************************************************************************'''
 Logo = f'''
-                Github==>https://github.com/MartinxMax    
+                Github==>https://github.com/interstin/sql-scan 
                 {Version}  '''
 
 def get(url,payload):
@@ -55,4 +55,5 @@ def main():
 
 
 if __name__=='__main__':
+    print(Logo,'\n')
     main()
