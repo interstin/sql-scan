@@ -16,13 +16,12 @@ Logo = f'''
                 {Version}  '''
 
 def get(url,payload):
-    result = requests.get(url=url+payload)
+    result = requests.get(url=url+payload).text
     return result
 
 
 def post(url,payload,data):
-    response = requests.post(url,data=data+payload)
-    result = response.content
+    result = requests.post(url,data=data+payload).text
     return result
 
 def scan(url,method,data):
@@ -30,7 +29,8 @@ def scan(url,method,data):
         for line in file:
             payload = line
             print("payload为：",payload)
-            if url !=None:
+            if data==None:
+                data =''
                 result = {
                     'post':post(url,payload,data)
                 }.get(method,get(url,payload))
