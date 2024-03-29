@@ -31,8 +31,8 @@ def post(url,payload,data):
     print("你访问的url为：",url,"\t访问方式为post")
     return result
 
-#要搜索的字符传
-s_data="hello"
+
+
 #搜索对应数据
 def search_data(data):
     soup = BeautifulSoup(data, 'html.parser')
@@ -43,11 +43,11 @@ def search_data(data):
             return data.get_text()[:match.start()]
         
 #检查是否存在注入
-def check_sql(url,method,data):
+def check_sql(url,method,data,payload):
     if method =='get':
-        result = get(url,data)
+        result = get(url,payload)
     elif method =='post':
-        result = post(url,data)
+        result = post(url,data,payload)
 
         
 
@@ -61,7 +61,8 @@ def scan(url,method,data):
             elif method =='post':
                 result = post(url,payload,data)
             
-            
+            #判断是否存在注入
+            check_sql(url,method,data,payload)
             #搜索数据
             result = search_data(result)
             print(result)
