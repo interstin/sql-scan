@@ -4,6 +4,7 @@ import requests
 import sys
 import argparse
 import re
+from bs4 import BeautifulSoup
 
 Version = "sql-scan Tool V1.0.0"
 Title = '''
@@ -15,26 +16,40 @@ Logo = f'''
                 Github==>https://github.com/interstin/sql-scan 
                 {Version}  '''
 
+def get_data(data):
+    soup = BeautifulSoup(data, 'html.parser')
+    p_data = soup.find_all('p')
+    for data in p_data:
+        match = re.search(r'hello haze$',data)
+        if match:
+            return match.group(0)
+
 def get(url,payload):
-    result = requests.get(url=url+payload).text
+    url=url+payload
+    result = requests.get(url).text
+    print("你访问的url为：",url,"\t访问方式为get")
     return result
 
 
 def post(url,payload,data):
-    result = requests.post(url,data=data+payload).text
+    data = data.replace('*',payload)
+    result = requests.post(url,data).text
+    print("你访问的url为：",url,"\t访问方式为post")
     return result
 
 def scan(url,method,data):
     with open('payload.txt','r') as file:
-        for line in file:
-            payload = line
-            print("payload为：",payload)
+        for payload in file:
             if data==None:
                 data =''
-                result = {
-                    'post':post(url,payload,data)
-                }.get(method,get(url,payload))
-                print(result)
+            if method =='get':
+                result = get(url,payload)
+            elif method =='post':
+                result = post(url,payload,data)
+            
+
+            result = get_data(result)
+            print(result)
 
 
 def main():
@@ -48,7 +63,7 @@ def main():
         print("请指定你要访问的地址:\n如test.py -u http://xxxxx") 
     elif not re.search(r"(?i)\Ahttp[s]*://", args.url):
         args.url = "http://%s" % args.url 
-        print("你访问的url为：",args.url)
+    #print("你访问的url为：",args.url)
     
     scan(args.url,args.method,args.data)
 
