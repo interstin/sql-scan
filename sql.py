@@ -16,26 +16,40 @@ Logo = f'''
                 Github==>https://github.com/interstin/sql-scan 
                 {Version}  '''
 
-def get_data(data):
-    soup = BeautifulSoup(data, 'html.parser')
-    p_data = soup.find_all('p')
-    for data in p_data:
-        match = re.search(r'hello haze$',data)
-        if match:
-            return match.group(0)
-
+#get请求
 def get(url,payload):
     url=url+payload
     result = requests.get(url).text
     print("你访问的url为：",url,"\t访问方式为get")
     return result
 
-
+#post请求
 def post(url,payload,data):
     data = data.replace('*',payload)
-    result = requests.post(url,data).text
+    headers = {"Content-Type": "application/x-www-form-urlencoded"}
+    result = requests.post(url,data=data,headers=headers).text
     print("你访问的url为：",url,"\t访问方式为post")
     return result
+
+#要搜索的字符传
+s_data="hello"
+#搜索对应数据
+def search_data(data):
+    soup = BeautifulSoup(data, 'html.parser')
+    p_data = soup.find_all('p')
+    for data in p_data:
+        match = re.search(s_data,data.get_text())
+        if match:
+            return data.get_text()[:match.start()]
+        
+#检查是否存在注入
+def check_sql(url,method,data):
+    if method =='get':
+        result = get(url,data)
+    elif method =='post':
+        result = post(url,data)
+
+        
 
 def scan(url,method,data):
     with open('payload.txt','r') as file:
@@ -47,8 +61,9 @@ def scan(url,method,data):
             elif method =='post':
                 result = post(url,payload,data)
             
-
-            result = get_data(result)
+            
+            #搜索数据
+            result = search_data(result)
             print(result)
 
 
@@ -56,7 +71,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("-U", "--url",required=True, help="URL to scan")
     parser.add_argument("-M","--method",default='get',help="get or post or others method,default is get")
-    parser.add_argument("-D","--data",help="the data that you want to post")
+    parser.add_argument("-D","--data",help="the data that you want to post，you want check palces use * replace")
     args = parser.parse_args()
 
     if args.url==None:
