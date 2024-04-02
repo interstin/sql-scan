@@ -20,7 +20,7 @@ Logo = f'''
 def get(url,payload):
     url=url+payload
     result = requests.get(url).text
-    print("你访问的url为：",url,"\t访问方式为get")
+    #print("你访问的url为：",url,"\t访问方式为get")
     return result
 
 #post请求
@@ -28,11 +28,11 @@ def post(url,payload,data):
     data = data.replace('*',payload)
     headers = {"Content-Type": "application/x-www-form-urlencoded"}
     result = requests.post(url,data=data,headers=headers).text
-    print("你访问的url为：",url,"\t访问方式为post")
+    #print("你访问的url为：",url,"\t访问方式为post")
     return result
 
 
-
+s_data="hello"
 #搜索对应数据
 def search_data(data):
     soup = BeautifulSoup(data, 'html.parser')
@@ -52,14 +52,25 @@ def check_sql(url,method,data,payload):
         
 
 def scan(url,method,data):
-    with open('payload.txt','r') as file:
+    with open('len.txt','r') as file:
         for payload in file:
             if data==None:
                 data =''
+            len = 1
             if method =='get':
                 result = get(url,payload)
             elif method =='post':
-                result = post(url,payload,data)
+                #猜数据库长度
+                while len<20:
+                    payload = payload.replace("*",str(len))
+                    result = post(url,payload,data)
+                    if "Logon failure" in result:
+                        #print(result)
+                        print("数据库的长度为：{}".format(len))
+                        return
+                    payload = payload.replace(str(len),"*")
+                    len+=1
+                
             
             #判断是否存在注入
             check_sql(url,method,data,payload)
